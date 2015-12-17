@@ -7,11 +7,12 @@ pub trait CharsExt<'a> {
 }
 
 impl<'a> CharsExt<'a> for Chars<'a> {
-
     fn byte_count(self) -> ByteCount<'a> {
-        ByteCount { chars: self, byte: 0 }
+        ByteCount {
+            chars: self,
+            byte: 0,
+        }
     }
-
 }
 
 pub struct ByteCount<'a> {
@@ -20,7 +21,6 @@ pub struct ByteCount<'a> {
 }
 
 impl<'a> Iterator for ByteCount<'a> {
-
     type Item = (usize, char);
 
     #[inline]
@@ -31,5 +31,4 @@ impl<'a> Iterator for ByteCount<'a> {
             return r;
         })
     }
-
 }
