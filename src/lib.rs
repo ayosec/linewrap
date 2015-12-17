@@ -19,6 +19,7 @@ pub struct WrappedLines<'a> {
     max_width: usize,
     text: &'a str,
     pending: Option<PendingLine>,
+    break_words: bool,
 }
 
 pub trait LineWrapper {
@@ -33,10 +34,20 @@ impl LineWrapper for str {
             max_width: width,
             text: self,
             pending: None,
+            break_words: false,
         }
     }
 
 }
+
+impl<'a> WrappedLines<'a> {
+
+    pub fn break_words(self, break_words: bool) -> Self {
+        WrappedLines { break_words: break_words, ..self }
+    }
+
+}
+
 
 impl<'a> Iterator for WrappedLines<'a> {
 
@@ -92,9 +103,15 @@ impl<'a> Iterator for WrappedLines<'a> {
             }
 
             if width >= self.max_width {
-                if let Some(lwe) = last_word_end {
+                let break_pos = match last_word_end {
+                    Some(n) => Some(n + 1),
+                    None if self.break_words => { first_nonblank = Some(text_offset); first_nonblank },
+                    None => None,
+                };
+
+                if let Some(pos) = break_pos {
                     self.pending = first_nonblank.map(|fnb| PendingLine { text_offset: text_offset, line_start: fnb });
-                    return Some(&self.text[current_line..lwe+1]);
+                    return Some(&self.text[current_line..pos]);
                 }
             }
 

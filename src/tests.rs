@@ -24,3 +24,29 @@ fn bigger_chars() {
     assert_eq!(lines.next(), Some("ｗｏｒｌｄ!"));
     assert_eq!(lines.next(), None);
 }
+
+#[test]
+fn keep_long_words() {
+
+    let text = "pqr abcdefghijklmn opq rstu vwxyz";
+    let mut lines = text.wrapped_lines(10).into_iter();
+    assert_eq!(lines.next(), Some("pqr"));
+    assert_eq!(lines.next(), Some("abcdefghijklmn"));
+    assert_eq!(lines.next(), Some("opq rstu"));
+    assert_eq!(lines.next(), Some("vwxyz"));
+    assert_eq!(lines.next(), None);
+
+}
+
+#[test]
+fn break_long_words() {
+
+    let text = "pqr abcdefghijklmn opq rstu vwxyz";
+    let mut lines = text.wrapped_lines(10).break_words(true).into_iter();
+    assert_eq!(lines.next(), Some("pqr"));
+    assert_eq!(lines.next(), Some("abcdefghij"));
+    assert_eq!(lines.next(), Some("klmn opq"));
+    assert_eq!(lines.next(), Some("rstu vwxyz"));
+    assert_eq!(lines.next(), None);
+
+}
