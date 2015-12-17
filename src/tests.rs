@@ -23,6 +23,32 @@ fn bigger_chars() {
     assert_eq!(lines.next(), Some("Ｈｅｌｌｏ,"));
     assert_eq!(lines.next(), Some("ｗｏｒｌｄ!"));
     assert_eq!(lines.next(), None);
+
+}
+
+#[test]
+fn new_lines() {
+    let text = "Duis aute irure dolor  \n in reprehenderit\n\n\nin voluptate velit esse cillum dolore eu fugiat nulla pariatur.";
+
+    let mut lines = text.wrapped_lines(40).into_iter();
+    assert_eq!(lines.next(), Some("Duis aute irure dolor"));
+    assert_eq!(lines.next(), Some("in reprehenderit"));
+    assert_eq!(lines.next(), Some(""));
+    assert_eq!(lines.next(), Some(""));
+    assert_eq!(lines.next(), Some("in voluptate velit esse cillum dolore eu"));
+    assert_eq!(lines.next(), Some("fugiat nulla pariatur."));
+    assert_eq!(lines.next(), None);
+
+}
+
+#[test]
+fn repeat_end() {
+    let text = "  abcd def  ";
+    let mut lines = text.wrapped_lines(100).into_iter();
+    assert_eq!(lines.next(), Some("abcd def"));
+    assert_eq!(lines.next(), None);
+    assert_eq!(lines.next(), None);
+    assert_eq!(lines.next(), None);
 }
 
 #[test]

@@ -61,11 +61,12 @@ impl<'a> Iterator for WrappedLines<'a> {
         match self.pending {
             Some(PendingLine { text_offset, line_start }) => {
                 current_line = line_start;
-                width = (&self.text[current_line..text_offset]).width();
+                width = (&self.text[current_line..(text_offset+1)]).width();
             },
             None => loop {
                 match self.chars.next() {
                     None => return None,
+                    Some((_, chr)) if chr == '\n' || chr == '\r' => return Some(""),
                     Some((_, chr)) if chr.is_whitespace() => (),
                     Some((n, chr)) => {
                         current_line = n;
@@ -82,10 +83,24 @@ impl<'a> Iterator for WrappedLines<'a> {
         loop {
 
             let (text_offset, chr) = match self.chars.next() {
+                Some((chr_offset, chr)) if chr == '\n' || chr == '\r' => {
+                    self.pending = None;
+
+                    let word_end;
+                    if first_nonblank.is_some() {
+                        word_end = chr_offset
+                    } else {
+                        word_end = last_word_end.unwrap_or(chr_offset) + 1
+                    };
+                    return Some(&self.text[current_line..word_end]);
+                },
                 Some((o, c)) => (o, c),
                 None => {
                     self.pending = None;
-                    return Some(&self.text[current_line..]);
+                    return match (first_nonblank, last_word_end) {
+                        (None, Some(n)) => Some(&self.text[current_line..(n+1)]),
+                        _ => Some(&self.text[current_line..])
+                    };
                 },
             };
 
@@ -102,7 +117,7 @@ impl<'a> Iterator for WrappedLines<'a> {
                 }
             }
 
-            if width >= self.max_width {
+            if width > self.max_width {
                 let break_pos = match last_word_end {
                     Some(n) => Some(n + 1),
                     None if self.break_words => { first_nonblank = Some(text_offset); first_nonblank },
