@@ -82,3 +82,21 @@ fn break_long_words() {
     assert_eq!(lines.next(), None);
 
 }
+
+#[test]
+fn custom_separators() {
+
+    let text = "abcdefg hijklm/nopqrstuvw xyz";
+
+    let mut default_sep = text.wrapped_lines(20);
+    assert_eq!(default_sep.next(), Some("abcdefg"));
+    assert_eq!(default_sep.next(), Some("hijklm/nopqrstuvw"));
+    assert_eq!(default_sep.next(), Some("xyz"));
+    assert_eq!(default_sep.next(), None);
+
+    let mut custom_sep = text.wrapped_lines(20).separator(|c: char| !c.is_alphanumeric());
+    assert_eq!(custom_sep.next(), Some("abcdefg hijklm"));
+    assert_eq!(custom_sep.next(), Some("nopqrstuvw xyz"));
+    assert_eq!(custom_sep.next(), None);
+
+}

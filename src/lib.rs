@@ -9,43 +9,94 @@ use unicode_width::UnicodeWidthStr;
 mod bytecount;
 use bytecount::{CharsExt, ByteCount};
 
-struct PendingLine {
-    text_offset: usize,
-    line_start: usize,
-}
-
-pub struct WrappedLines<'a> {
-    chars: ByteCount<'a>,
-    max_width: usize,
-    text: &'a str,
-    pending: Option<PendingLine>,
-    break_words: bool,
-}
-
 pub trait LineWrapper {
-    fn wrapped_lines(&self, width: usize) -> WrappedLines;
+    fn wrapped_lines<'a>(&'a self, width: usize) -> WrappedLines<'a, DefaultSeparator>;
+}
+
+pub trait Separator {
+    fn is_separator(&self, c: char) -> bool;
+}
+
+pub trait AsSeparator {
+    type Inner: Separator;
+    fn as_separator(self) -> Self::Inner;
+}
+
+pub struct DefaultSeparator;
+pub struct ClosureSeparator(Box<Fn(char) -> bool>);
+
+impl Separator for DefaultSeparator {
+    #[inline]
+    fn is_separator(&self, c: char) -> bool {
+        c.is_whitespace()
+    }
+}
+
+impl<F> AsSeparator for F where F: Fn(char) -> bool + 'static {
+
+    type Inner = ClosureSeparator;
+
+    #[inline]
+    fn as_separator(self) -> ClosureSeparator {
+        ClosureSeparator(Box::new(self))
+    }
+
+}
+
+impl Separator for ClosureSeparator {
+    #[inline]
+    fn is_separator(&self, c: char) -> bool {
+        self.0(c)
+    }
 }
 
 impl LineWrapper for str {
-    fn wrapped_lines<'a>(&'a self, width: usize) -> WrappedLines<'a> {
+    fn wrapped_lines<'a>(&'a self, width: usize) -> WrappedLines<'a, DefaultSeparator> {
         WrappedLines {
             chars: self.chars().byte_count(),
             max_width: width,
             text: self,
             pending: None,
             break_words: false,
+            separator: DefaultSeparator,
         }
     }
 }
 
-impl<'a> WrappedLines<'a> {
+struct PendingLine {
+    text_offset: usize,
+    line_start: usize,
+}
+
+pub struct WrappedLines<'a, S> {
+    chars: ByteCount<'a>,
+    max_width: usize,
+    text: &'a str,
+    pending: Option<PendingLine>,
+    break_words: bool,
+    separator: S,
+}
+
+
+impl<'a, S> WrappedLines<'a, S> {
     pub fn break_words(self, break_words: bool) -> Self {
         WrappedLines { break_words: break_words, ..self }
+    }
+
+    pub fn separator<F: AsSeparator>(self, sep: F) -> WrappedLines<'a, F::Inner> {
+        WrappedLines {
+            chars: self.chars,
+            max_width: self.max_width,
+            text: self.text,
+            pending: self.pending,
+            break_words: self.break_words,
+            separator: sep.as_separator(),
+        }
     }
 }
 
 
-impl<'a> Iterator for WrappedLines<'a> {
+impl<'a, S: Separator> Iterator for WrappedLines<'a, S> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -63,7 +114,7 @@ impl<'a> Iterator for WrappedLines<'a> {
                     match self.chars.next() {
                         None => return None,
                         Some((_, chr)) if chr == '\n' || chr == '\r' => return Some(""),
-                        Some((_, chr)) if chr.is_whitespace() => (),
+                        Some((_, chr)) if self.separator.is_separator(chr) => (),
                         Some((n, chr)) => {
                             current_line = n;
                             width = chr.width().unwrap_or(1);
@@ -103,7 +154,7 @@ impl<'a> Iterator for WrappedLines<'a> {
 
             width += chr.width().unwrap_or(1);
 
-            if chr.is_whitespace() {
+            if self.separator.is_separator(chr) {
                 if first_nonblank != None {
                     last_word_end = Some(text_offset - 1);
                     first_nonblank = None;
